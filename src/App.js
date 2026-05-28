@@ -33,6 +33,19 @@ const STATUS_COLORS = {
 
 const SCORE_LABELS = ['', 'Low', 'Below avg', 'Average', 'Above avg', 'High'];
 
+// Extra supplier detail fields (added to the suppliers table). These render
+// in the supplier sub-table when present — e.g. the screwdriver tiers carry
+// tier/torque/verification/mounting/controller/price_source. Other components
+// simply leave them null. Keep in sync with the suppliers schema migration.
+const SUPPLIER_DETAIL_FIELDS = [
+  { key: 'tier',         label: 'Tier' },
+  { key: 'torque',       label: 'Torque range' },
+  { key: 'verification', label: 'Verification' },
+  { key: 'mounting',     label: 'Mounting' },
+  { key: 'controller',   label: 'Controller (separate)' },
+  { key: 'price_source', label: 'Price source' },
+];
+
 // ── Helpers ───────────────────────────────────────────────────
 function ScoreDots({ value, max = 5, color = '#00D4FF' }) {
   return (
@@ -302,7 +315,7 @@ function ComponentsSection() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [addingSupplier, setAddingSupplier] = useState(false);
-  const [newSupplier, setNewSupplier] = useState({ name: '', country: '', region: 'foreign', status: 'prospective', unit_cost_usd: '', notes: '' });
+  const [newSupplier, setNewSupplier] = useState({ name: '', country: '', region: 'foreign', status: 'prospective', unit_cost_usd: '', tier: '', torque: '', verification: '', mounting: '', controller: '', price_note: '', price_source: '', notes: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -319,7 +332,7 @@ function ComponentsSection() {
     try {
       const [s] = await db.insert('suppliers', { ...newSupplier, component_id: selected, unit_cost_usd: newSupplier.unit_cost_usd ? parseFloat(newSupplier.unit_cost_usd) : null });
       setSuppliers(prev => [...prev, s]);
-      setNewSupplier({ name: '', country: '', region: 'foreign', status: 'prospective', unit_cost_usd: '', notes: '' });
+      setNewSupplier({ name: '', country: '', region: 'foreign', status: 'prospective', unit_cost_usd: '', tier: '', torque: '', verification: '', mounting: '', controller: '', price_note: '', price_source: '', notes: '' });
       setAddingSupplier(false);
     } catch (e) {}
     setSaving(false);
@@ -406,6 +419,13 @@ function ComponentsSection() {
                     { key: 'unit_cost_usd', placeholder: 'Unit cost (USD)' },
                     { key: 'contact_name', placeholder: 'Contact name' },
                     { key: 'website', placeholder: 'Website' },
+                    { key: 'tier', placeholder: 'Tier (e.g. Base / Premium)' },
+                    { key: 'torque', placeholder: 'Torque range' },
+                    { key: 'verification', placeholder: 'Verification method' },
+                    { key: 'mounting', placeholder: 'Mounting' },
+                    { key: 'controller', placeholder: 'Controller (separate)' },
+                    { key: 'price_note', placeholder: 'Price (e.g. ~$4,000 driver)' },
+                    { key: 'price_source', placeholder: 'Price source (verified / quote-only)' },
                   ].map(f => (
                     <input key={f.key} value={newSupplier[f.key] || ''} onChange={e => setNewSupplier(p => ({ ...p, [f.key]: e.target.value }))}
                       placeholder={f.placeholder}
@@ -456,10 +476,22 @@ function ComponentsSection() {
                           <Badge text={s.status || 'tbd'} color={STATUS_COLORS[s.status] || '#3A5068'} />
                         </div>
                       </div>
-                      {s.unit_cost_usd && (
-                        <div style={{ fontSize: 13, color: '#00D4FF', fontFamily: "'DM Mono', monospace" }}>${s.unit_cost_usd.toLocaleString()}</div>
+                      {(s.price_note || s.unit_cost_usd) && (
+                        <div style={{ fontSize: 13, color: '#00D4FF', fontFamily: "'DM Mono', monospace", textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {s.price_note || `$${s.unit_cost_usd.toLocaleString()}`}
+                        </div>
                       )}
                     </div>
+                    {SUPPLIER_DETAIL_FIELDS.some(f => s[f.key]) && (
+                      <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
+                        {SUPPLIER_DETAIL_FIELDS.filter(f => s[f.key]).map(f => (
+                          <div key={f.key} style={{ background: '#04080F', borderRadius: 4, padding: '6px 10px' }}>
+                            <div style={{ fontSize: 9, color: '#3A5068', fontFamily: "'DM Mono', monospace", textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 3 }}>{f.label}</div>
+                            <div style={{ fontSize: 11, color: '#C8D8F0', lineHeight: 1.4 }}>{s[f.key]}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {s.notes && <div style={{ marginTop: 8, fontSize: 12, color: '#5A7090' }}>{s.notes}</div>}
                     <Comments tableName="suppliers" recordId={s.id} />
                   </Card>
